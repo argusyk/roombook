@@ -1,0 +1,9 @@
+# .github/CODEOWNERS – обов'язкове людське рев'ю для ризикових зон RoomBook
+# Останнє збіжне правило має пріоритет.
+# Імена команд умовні (навчальний приклад): у своєму репозиторії замініть їх
+# командами організації або логінами власників.
+apps/api/prisma/schema.prisma     @roombook-dept/db-owners
+apps/api/prisma/migrations/       @roombook-dept/db-owners
+apps/api/src/auth/                @roombook-dept/auth-owners
+legacy-php/                       @roombook-dept/legacy-owners
+.github/                          @roombook-dept/maintainers
