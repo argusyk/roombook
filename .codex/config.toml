@@ -1,0 +1,7 @@
+# roombook/.codex/config.toml – властивості проєкту, а не режиму роботи
+# НЕ додавати сюди model, model_reasoning_effort, sandbox_mode,
+# approval_policy: проєктний файл сильніший за профіль і зламає -p safe.
+
+[features]
+# правила RoomBook живуть в AGENTS.md і проходять рев'ю (розділ 5)
+memories = false

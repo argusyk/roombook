@@ -1,0 +1,20 @@
+# ci.config.toml – неінтерактивні запуски (GitHub Actions)
+# На раннері копіюється в $CODEX_HOME.
+# Запуск: codex exec -p ci --ephemeral "<задача>"
+# Ключ API передається лише кроку з codex exec, не всій задачі.
+sandbox_mode = "workspace-write"
+approval_policy = "never"          # людини немає; межі задає пісочниця
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+web_search = "disabled"
+check_for_update_on_startup = false
+
+[sandbox_workspace_write]
+network_access = false
+
+[shell_environment_policy]
+inherit = "core"
+set = { CI = "1", TZ = "UTC" }
+
+[history]
+persistence = "none"

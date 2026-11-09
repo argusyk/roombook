@@ -1,0 +1,16 @@
+# ~/.codex/work.config.toml – щоденна розробка RoomBook
+# Запуск: codex -p work   (псевдонім: alias cx='codex -p work')
+# Додатковий каталог із правом запису – лише разово:
+#   codex -p work --add-dir ../shared
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+web_search = "cached"
+
+[sandbox_workspace_write]
+network_access = false
+
+[shell_environment_policy]
+inherit = "core"
+set = { TZ = "UTC" }

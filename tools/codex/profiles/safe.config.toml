@@ -1,0 +1,12 @@
+# ~/.codex/safe.config.toml – огляд, планування, чужий або legacy-код
+# Запуск: codex -p safe
+# Агент лише читає. Будь-яка зміна файлів потребує окремої сесії з -p work.
+sandbox_mode = "read-only"
+approval_policy = "on-request"
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
+web_search = "disabled"
+
+[shell_environment_policy]
+inherit = "core"
+set = { TZ = "UTC" }
