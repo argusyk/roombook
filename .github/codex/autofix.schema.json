@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["fixed", "not_fixed", "needs_human"]
+    },
+    "root_cause": { "type": "string" },
+    "summary": { "type": "string" },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "tests_run": { "type": "array", "items": { "type": "string" } },
+    "risk": { "type": "string", "enum": ["low", "medium", "high"] }
+  },
+  "required": [
+    "status", "root_cause", "summary", "files_changed", "tests_run", "risk"
+  ],
+  "additionalProperties": false
+}
