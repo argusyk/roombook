@@ -14,3 +14,6 @@ apps/web/e2e/artifacts/
 
 # legacy: експорти CSV лежать поруч зі звітами (історично; див. розд. 7)
 legacy-php/exports/*.csv
+
+# особисті перевизначення інструкцій агента (розд. 5)
+AGENTS.override.md
