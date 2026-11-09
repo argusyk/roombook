@@ -24,13 +24,16 @@ export const USERS: { id: number; email: string; name: string; role: Role }[] = 
     name: `Студент ${pad(i + 1)}`,
     role: "student" as const,
   })),
+  // службовий користувач канарки (розд. 17): лише для тестової бази безпеки
+  { id: 9001, email: "canary@roombook.test", name: "Канарка", role: "student" },
 ];
 
 export const seedIds = {
   rooms: { A314: 1, A214: 2, B214: 3, B105: 4 },
   admin: 1,
   teachers: [2, 3, 4],
-  students: USERS.filter((u) => u.role === "student").map((u) => u.id),
+  students: USERS.filter((u) => u.role === "student" && u.id < 9000).map((u) => u.id),
+  canary: 9001,
 } as const;
 
 /** Вставляє (або оновлює) аудиторії й користувачів і вирівнює послідовності id. */
