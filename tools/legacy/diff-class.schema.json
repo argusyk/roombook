@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "week": { "type": "string" },
+          "file": { "type": "string" },
+          "class": { "type": "string", "enum": ["logic", "data", "known"] },
+          "evidence": { "type": "string" },
+          "known_diff": { "type": ["integer", "null"] }
+        },
+        "required": ["week", "file", "class", "evidence", "known_diff"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["items"],
+  "additionalProperties": false
+}
