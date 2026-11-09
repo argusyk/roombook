@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened]
+    # ready_for_review: чернетка автофіксу (розд. 16) запускає CI, коли її
+    # позначає людина – події GITHUB_TOKEN інших workflow не запускають
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -14,12 +16,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: typecheck · lint · unit
+  lint:
+    name: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0             # test-guard порівнює з базовою гілкою
@@ -28,23 +30,18 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: bash tools/ci/test-guard.sh "origin/$BASE_REF"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r typecheck
       - run: pnpm -r lint
-      - name: Модульні тести (без БД)
-        run: |
-          pnpm --filter @roombook/shared test
-          pnpm --filter @roombook/web test
-          pnpm --filter @roombook/api test:unit
+      - run: pnpm -r typecheck
 
-  integration:
-    name: test:int (PostgreSQL 16)
+  test:
+    name: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -60,13 +57,74 @@ jobs:
       DATABASE_URL: postgresql://roombook:roombook@localhost:5432/roombook_test
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - name: Модульні тести (без БД)
+        run: |
+          pnpm --filter @roombook/shared test
+          pnpm --filter @roombook/web test
+          pnpm --filter @roombook/api test:unit
       - run: pnpm --filter @roombook/api exec prisma migrate deploy
-      - run: pnpm --filter @roombook/api test:int
+      - name: Інтеграційні тести (PostgreSQL 16)
+        run: pnpm --filter @roombook/api test:int
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: roombook
+          POSTGRES_PASSWORD: roombook
+          POSTGRES_DB: roombook_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roombook"
+          --health-interval 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://roombook:roombook@localhost:5432/roombook_e2e
+      NODE_ENV: development          # dev-login для тестових користувачів сіду
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: База e2e – міграції і сід
+        run: |
+          pnpm --filter @roombook/api exec prisma migrate deploy
+          pnpm --filter @roombook/api exec prisma db seed
+      - run: pnpm --filter @roombook/web exec playwright install --with-deps chromium
+      - name: API і web у фоні
+        run: |
+          nohup pnpm --filter @roombook/api exec tsx src/server.ts > "$RUNNER_TEMP/api.log" 2>&1 &
+          nohup pnpm --filter @roombook/web dev > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000/health >/dev/null \
+              && curl -sf http://localhost:5173/ >/dev/null && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"; exit 1
+      - run: pnpm --filter @roombook/web test:e2e
+      - name: Журнали серверів
+        if: failure()
+        run: tail -n 100 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-report
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
