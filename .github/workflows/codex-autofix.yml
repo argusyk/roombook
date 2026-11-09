@@ -1,0 +1,266 @@
+# .github/workflows/codex-autofix.yml – автовиправлення падінь CI (розд. 16)
+# Агент (job fix) має ключ Codex, але не має права запису; публікація (job publish)
+# має право запису, але не має ключа і не виконує коду гілки. Між ними – лише артефакт.
+#
+# Безпечні умови запуску в публічному репозиторії:
+#  - тригер workflow_run (НЕ pull_request_target), лише гілки цього репозиторію;
+#  - job gate: без секрету CODEX_API_KEY усе пропускається (skipped);
+#  - права за замовчуванням порожні, кожна job отримує мінімум.
+name: codex-autofix
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+
+permissions: {}                    # права видають окремі job-и
+
+concurrency:
+  group: codex-autofix-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false        # не переривати агента посеред роботи
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.key.outputs.enabled }}
+    steps:
+      - id: key
+        env:
+          HAS_KEY: ${{ secrets.CODEX_API_KEY != '' }}
+        run: echo "enabled=$HAS_KEY" >> "$GITHUB_OUTPUT"
+
+  fix:
+    needs: gate
+    if: >-
+      needs.gate.outputs.enabled == 'true' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_repository.full_name ==
+      github.repository &&
+      !startsWith(github.event.workflow_run.head_branch, 'codex/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read                # прочитати журнал упалого запуску
+      pull-requests: read          # порахувати сьогоднішні автофікси
+    env:
+      FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+      FAILED_RUN: ${{ github.event.workflow_run.id }}
+      FIX_BRANCH: codex/autofix-${{ github.event.workflow_run.head_sha }}
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+    services:                      # postgres:16 – лише для кроку перевірки
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: roombook
+          POSTGRES_PASSWORD: roombook
+          POSTGRES_DB: roombook_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roombook"
+          --health-interval 5s --health-retries 12
+    steps:
+      # 1. Довірені файли беремо з основної гілки, а не з гілки, що впала
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Відкласти профіль, промпт і скрипти поза робоче дерево
+        run: |
+          T="$RUNNER_TEMP/trusted"; H="$RUNNER_TEMP/codex-home"
+          mkdir -p "$T" "$H"
+          cp tools/codex/profiles/ci.config.toml "$H/config.toml"
+          cp .github/codex/prompts/autofix.md \
+             .github/codex/autofix.schema.json \
+             tools/ci/test-guard.sh tools/codex/summarize-run.sh "$T/"
+          echo "TRUSTED=$T" >> "$GITHUB_ENV"
+          echo "CODEX_HOME=$H" >> "$GITHUB_ENV"
+
+      # 2. Код коміту, що впав; токен не лишається в .git/config
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.FAILED_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # 3. Запобіжники: дублікат, денний ліміт, лише job lint/test; журнал падіння
+      - name: Запобіжники
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          stop() { echo "$1" >> "$GITHUB_STEP_SUMMARY"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          if gh api "repos/$GITHUB_REPOSITORY/branches/$FIX_BRANCH" --silent 2>/dev/null; then
+            stop "Гілка $FIX_BRANCH уже існує, пропускаємо"
+          fi
+          today=$(gh pr list --label codex-autofix --state all \
+                    --search "created:>=$(date -u +%F)" --json number --jq length)
+          [ "$today" -ge 3 ] && stop "Денний ліміт автофіксів вичерпано: $today"
+          gh run view "$FAILED_RUN" --json jobs \
+            --jq '.jobs[] | select(.conclusion == "failure") | .name' \
+            > "$RUNNER_TEMP/failed-jobs.txt"
+          if grep -qvE '^(lint|test)$' "$RUNNER_TEMP/failed-jobs.txt"; then
+            stop "Упали не лише lint/test ($(tr '\n' ' ' < "$RUNNER_TEMP/failed-jobs.txt")) – задача для людини"
+          fi
+          [ -s "$RUNNER_TEMP/failed-jobs.txt" ] || stop "Немає упалих job lint/test"
+          gh run view "$FAILED_RUN" --log-failed | tail -n 300 > "$RUNNER_TEMP/failed.log"
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      # 4. Мережа потрібна менеджеру пакетів, а не агентові
+      - uses: actions/setup-node@v7
+        if: steps.guard.outputs.go == 'true'
+        with:
+          node-version: 22
+      - name: Залежності, тестова база, CLI
+        if: steps.guard.outputs.go == 'true'
+        env:
+          DATABASE_URL: >-
+            postgres://roombook:roombook@localhost:5432/roombook_test
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @roombook/api exec prisma migrate deploy
+          npm install -g @openai/codex@0.167.0
+
+      # 5. Повтор упалих перевірок: зелено – нестабільний тест, агента не кличемо
+      - name: Повтор упалих перевірок
+        id: rerun
+        if: steps.guard.outputs.go == 'true'
+        env:
+          DATABASE_URL: >-
+            postgres://roombook:roombook@localhost:5432/roombook_test
+        run: |
+          ok=true
+          while read -r job; do
+            case "$job" in
+              lint) pnpm -r lint && pnpm -r typecheck ;;
+              test) pnpm -r test ;;
+            esac || ok=false
+          done < "$RUNNER_TEMP/failed-jobs.txt"
+          if $ok; then
+            echo "Повтор зелений: нестабільний тест (розд. 12), автофікс не потрібен" \
+              >> "$GITHUB_STEP_SUMMARY"
+            echo "flaky=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "flaky=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 6. Агент: ключ лише тут, тайм-аут кроку 20 хвилин
+      - name: Codex – найменший безпечний патч
+        id: codex
+        if: steps.guard.outputs.go == 'true' && steps.rerun.outputs.flaky == 'false'
+        timeout-minutes: 20
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+        run: |
+          start=$SECONDS
+          set +e
+          codex exec --sandbox workspace-write --json \
+            --output-schema "$TRUSTED/autofix.schema.json" \
+            -o "$RUNNER_TEMP/report.json" \
+            "$(cat "$TRUSTED/autofix.md")
+
+          Журнал упалих кроків (останні 300 рядків):
+          $(cat "$RUNNER_TEMP/failed.log")" > "$RUNNER_TEMP/events.jsonl"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          echo "duration=$((SECONDS - start))" >> "$GITHUB_OUTPUT"
+
+      # 7. Незалежна перевірка: без ключа, ті самі перевірки, що впали
+      - name: Перевірка результату
+        id: verify
+        if: steps.guard.outputs.go == 'true' && steps.rerun.outputs.flaky == 'false'
+        env:
+          DATABASE_URL: >-
+            postgres://roombook:roombook@localhost:5432/roombook_test
+        run: |
+          out() { echo "status=$1" >> "$GITHUB_OUTPUT"; exit 0; }
+          R="$RUNNER_TEMP/report.json"
+          status=$(jq -r '.status // "no-report"' "$R" 2>/dev/null \
+                   || echo no-report)
+          [ "$status" = "fixed" ] || out "$status"
+          [ -n "$(git status --porcelain)" ] || out no_changes
+          git config user.name "roombook-codex[bot]"
+          git config user.email "roombook-codex@users.noreply.github.com"
+          git add -A
+          git commit -q -m "fix(ci): автовиправлення для ${FAILED_SHA::8}" \
+                        -m "$(jq -r .summary "$R")"
+          # заборонені шляхи: політику тримає скрипт, а не промпт
+          git diff --name-only "$FAILED_SHA" HEAD > "$RUNNER_TEMP/files"
+          deny='^(\.github/|apps/api/prisma/migrations/'
+          deny="$deny|pnpm-lock\.yaml)"
+          grep -qE "$deny" "$RUNNER_TEMP/files" && out forbidden_path
+          # саме ті перевірки, що впали в ci.yml (e2e відсіяв крок 3)
+          while read -r job; do
+            case "$job" in
+              lint) pnpm -r lint && pnpm -r typecheck ;;
+              test) pnpm -r test ;;
+              *) false ;;
+            esac || out verify_failed
+          done < "$RUNNER_TEMP/failed-jobs.txt"
+          bash "$TRUSTED/test-guard.sh" "$FAILED_SHA" || out verify_failed
+          git format-patch -1 --stdout > "$RUNNER_TEMP/fix.patch"
+          out fixed
+
+      # 8. Метрики й артефакти – навіть якщо щось упало
+      - name: Метрики
+        if: always() && steps.codex.outcome != 'skipped' && steps.guard.outputs.go == 'true'
+        run: |
+          bash "$TRUSTED/summarize-run.sh" "$RUNNER_TEMP/events.jsonl" \
+            "$RUNNER_TEMP/report.json" autofix \
+            "${{ steps.codex.outputs.duration || 0 }}" \
+            > "$RUNNER_TEMP/metrics.jsonl"
+          jq -r '"- status: \(.status)\n- причина: \(.root_cause)\n" +
+                 "- ризик: \(.risk)"' "$RUNNER_TEMP/report.json" \
+            >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.guard.outputs.go == 'true'
+        with:
+          name: codex-autofix
+          path: |
+            ${{ runner.temp }}/fix.patch
+            ${{ runner.temp }}/report.json
+            ${{ runner.temp }}/events.jsonl
+            ${{ runner.temp }}/metrics.jsonl
+          if-no-files-found: ignore
+          retention-days: 30
+
+  publish:
+    needs: fix
+    if: needs.fix.outputs.status == 'fixed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write              # створити гілку codex/autofix-…
+      pull-requests: write         # відкрити чернетку PR
+    env:
+      FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+      BASE_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      FIX_BRANCH: codex/autofix-${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.FAILED_SHA }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: codex-autofix
+          path: ${{ runner.temp }}/codex
+      - name: Гілка і чернетка PR (без злиття)
+        run: |
+          git config user.name "roombook-codex[bot]"
+          git config user.email "roombook-codex@users.noreply.github.com"
+          git switch -c "$FIX_BRANCH"
+          git am "$RUNNER_TEMP/codex/fix.patch"
+          git push origin "$FIX_BRANCH"
+          jq -r '"## Причина\n\(.root_cause)\n\n## Зміни\n\(.summary)\n\n" +
+                 "Ризик: \(.risk). Тести: \(.tests_run | join(", "))\n\n" +
+                 "Автовиправлення Codex. Позначте PR як Ready for review," +
+                 " щоб запустити CI."' \
+            "$RUNNER_TEMP/codex/report.json" > body.md
+          gh pr create --draft --base "$BASE_BRANCH" --head "$FIX_BRANCH" \
+            --title "fix(ci): автовиправлення для ${FAILED_SHA::8}" \
+            --label codex-autofix --body-file body.md

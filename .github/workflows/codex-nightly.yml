@@ -1,0 +1,78 @@
+# .github/workflows/codex-nightly.yml – нічний розбір issue з міткою agent-ready (розд. 16)
+# У публічному навчальному репозиторії розклад вимкнено: запуск лише вручну
+# (workflow_dispatch). Щоб увімкнути розклад, розкоментуйте schedule і додайте
+# секрет CODEX_API_KEY. Без секрету job gate пропускає роботу.
+name: codex-nightly
+on:
+  # schedule:
+  #   # 01:30 UTC = 03:30 або 04:30 за Києвом, пн–пт
+  #   - cron: "30 1 * * 1-5"
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: codex-nightly
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.key.outputs.enabled }}
+    steps:
+      - id: key
+        env:
+          HAS_KEY: ${{ secrets.CODEX_API_KEY != '' }}
+        run: echo "enabled=$HAS_KEY" >> "$GITHUB_OUTPUT"
+
+  triage:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75            # 3 issue × 20 хв + запас на встановлення
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      # на рівні job: її бачать і міграції, і тести, які запускає скрипт
+      DATABASE_URL: >-
+        postgres://roombook:roombook@localhost:5432/roombook_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: roombook
+          POSTGRES_PASSWORD: roombook
+          POSTGRES_DB: roombook_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roombook"
+          --health-interval 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22 }
+      - name: Залежності, база, CLI, профіль
+        run: |
+          corepack enable && pnpm install --frozen-lockfile
+          pnpm --filter @roombook/api exec prisma migrate deploy
+          npm install -g @openai/codex@0.167.0
+          mkdir -p "$RUNNER_TEMP/codex-home"
+          cp tools/codex/profiles/ci.config.toml \
+             "$RUNNER_TEMP/codex-home/config.toml"
+      - name: Розбір issue з міткою agent-ready
+        env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          node --experimental-strip-types tools/codex/nightly-triage.mts
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: codex-nightly
+          path: ${{ runner.temp }}/nightly-metrics.jsonl
+          if-no-files-found: ignore

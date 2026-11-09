@@ -1,0 +1,73 @@
+# .github/workflows/codex-review.yml (політика рев'ю – розділ 15)
+# Тригер pull_request (НЕ pull_request_target): PR з форків секретів не отримують,
+# а умова head.repo відсікає їх явно. Без секрету CODEX_API_KEY job gate вимикає рев'ю.
+name: codex-review
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+permissions: {}
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.key.outputs.enabled }}
+    steps:
+      - id: key
+        env:
+          HAS_KEY: ${{ secrets.CODEX_API_KEY != '' }}
+        run: echo "enabled=$HAS_KEY" >> "$GITHUB_OUTPUT"
+
+  review:
+    needs: gate
+    if: >-
+      needs.gate.outputs.enabled == 'true' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          persist-credentials: false
+      - name: Підтягнути base і head PR
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR: ${{ github.event.pull_request.number }}
+        run: git fetch --no-tags origin "$BASE_REF" "+refs/pull/$PR/head"
+      - name: Codex – рев'ю
+        id: run_codex
+        # openai/codex-action v1.13, закріплено за SHA коміту
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
+        with:
+          openai-api-key: ${{ secrets.CODEX_API_KEY }}
+          permission-profile: ":read-only"
+          codex-version: 0.167.0
+          model: gpt-6.1-sol
+          effort: medium
+          prompt: |
+            Переглянь лише зміни цього PR:
+            git diff ${{ github.event.pull_request.base.sha }}...HEAD
+            Політика й формат – .github/codex/prompts/review.md.
+
+  post_feedback:
+    needs: review
+    if: needs.review.outputs.final_message != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Коментар рецензента в PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          MSG: ${{ needs.review.outputs.final_message }}
+        run: gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --body "$MSG"
