@@ -30,6 +30,14 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: bash tools/ci/test-guard.sh "origin/$BASE_REF"
+      - name: Сканування секретів (gitleaks, уся історія)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tgz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git . --redact --no-banner --exit-code 1
       - uses: actions/setup-node@v7
         with:
           node-version: 22
