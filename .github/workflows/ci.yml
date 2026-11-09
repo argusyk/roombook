@@ -22,6 +22,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0             # test-guard порівнює з базовою гілкою
+      - name: Тести не послаблено (test-guard)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash tools/ci/test-guard.sh "origin/$BASE_REF"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
