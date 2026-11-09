@@ -6,6 +6,10 @@ const Env = z.object({
     .default("development"),
   API_PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().optional(),
+  // розд. 11: фасад тижневого звіту – legacy | shadow | new
+  REPORTS_ROOM_WEEK_MODE: z.enum(["legacy", "shadow", "new"]).default("new"),
+  LEGACY_REPORTS_URL: z.string().url().optional(), // адреса старих PHP-звітів (legacy, shadow)
+  REPORTS_DIFF_DIR: z.string().default("reports/diffs"),
 });
 
 export type Config = z.infer<typeof Env>;

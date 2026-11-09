@@ -7,6 +7,7 @@ import { authRoutes } from "./auth/routes";
 import { bookingRoutes } from "./booking/routes";
 import { seriesRoutes } from "./recurrence/routes";
 import { meRoutes } from "./me/routes";
+import { roomWeekRoutes } from "./reports/room-week.route";
 import { roomRoutes } from "./rooms/routes";
 import { slotRoutes } from "./slots/routes";
 
@@ -51,5 +52,6 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(seriesRoutes);
   await app.register(slotRoutes);
   await app.register(meRoutes);
+  await app.register(roomWeekRoutes);
   return app;
 }
