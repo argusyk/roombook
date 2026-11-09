@@ -19,6 +19,7 @@
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
+pnpm db:up                                  # PostgreSQL 16 у Docker (бази roombook і roombook_test)
 cp apps/api/.env.example apps/api/.env      # DATABASE_URL до PostgreSQL 16
 pnpm --filter @roombook/api exec prisma migrate deploy
 pnpm --filter @roombook/api exec prisma db seed
@@ -32,7 +33,8 @@ pnpm --filter @roombook/web dev             # web на :5173
 pnpm -r typecheck
 pnpm -r lint
 pnpm --filter @roombook/api test:unit       # без бази даних
-pnpm --filter @roombook/api test:int        # потрібна PostgreSQL (DATABASE_URL)
+pnpm --filter @roombook/api test:int        # потрібна PostgreSQL; міграції до roombook_test
+                                            # застосовує globalSetup тестів
 pnpm --filter @roombook/web test
 pnpm --filter @roombook/shared test
 ```

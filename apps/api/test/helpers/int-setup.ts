@@ -1,14 +1,11 @@
-// Підготовка проєкту int: ці тести ходять у справжню PostgreSQL.
-// Пісочниця агента з вимкненою мережею не дає підключитися навіть до
-// localhost:5432 – такі тести запускає людина або крок verify у CI.
+// setupFiles проєкту int: виконується в кожному процесі з тестами до імпорту
+// тестових файлів. Фіксує DATABASE_URL на тестовій базі (суфікс _test),
+// щоб Prisma не взяла робочу базу з apps/api/.env.
+// Міграції застосовує globalSetup (test/helpers/int-global-setup.ts).
 import { afterAll } from "vitest";
+import { testDatabaseUrl } from "./test-db";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL не задано: інтеграційним тестам потрібна PostgreSQL " +
-      "(див. apps/api/.env.example). Модульні тести: pnpm --filter @roombook/api test:unit",
-  );
-}
+process.env.DATABASE_URL = testDatabaseUrl();
 
 afterAll(async () => {
   const { prisma } = await import("../../src/db");
