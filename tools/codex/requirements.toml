@@ -1,0 +1,7 @@
+# /etc/codex/requirements.toml – студентські машини кафедри (розд. 17, 18)
+# Керовані вимоги: користувач не може їх обійти. Встановлює адміністратор
+# (системний шлях /etc/codex/ або MDM на macOS), не install-profiles.sh.
+# Раннери CI під цю вимогу не підпадають: власний CODEX_HOME з профілем ci.
+allowed_approval_policies = ["on-request"]
+allowed_sandbox_modes = ["read-only", "workspace-write"]
+allowed_web_search_modes = ["cached"]   # "disabled" дозволено завжди

@@ -1,0 +1,11 @@
+# ~/.codex/report.config.toml – звіти через MCP-сервер бази даних (розд. 17)
+# Запуск: codex exec -p report "[задача звіту]"   (прапорець – після exec)
+# Сервер оголошено в .codex/config.toml проєкту; тут лише звужено інструменти.
+# Канал витоку розриває мінімальний набір інструментів: без вебпошуку,
+# без запису, один інструмент запиту до представлень без таблиці User.
+sandbox_mode = "read-only"
+approval_policy = "never"
+web_search = "disabled"
+
+[mcp_servers.roombook_db]
+enabled_tools = ["query"]           # лише читання представлень без таблиці користувачів
