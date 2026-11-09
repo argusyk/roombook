@@ -53,3 +53,27 @@ export const SlotIdParam = z.object({
 });
 
 export const DevLogin = z.object({ email: z.string().email() });
+
+/** Місцевий час кафедри для поля datetime-local: "YYYY-MM-DDTHH:mm". */
+export const LocalDateTime = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Очікується YYYY-MM-DDTHH:mm");
+
+/** Правило щотижневого повторення (розд. 4). Лише щотижневе, без RFC 5545. */
+export const WeeklyRecurrence = z.object({
+  startLocal: LocalDateTime, // перше заняття, місцевий час timeZone
+  durationMin: z.number().int().min(15).max(600),
+  intervalWeeks: z.number().int().min(1).max(4).default(1),
+  untilLocalDate: LocalDate, // включно
+  exdates: z.array(LocalDate).default([]),
+  timeZone: z.literal("Europe/Kyiv").default("Europe/Kyiv"),
+});
+export type WeeklyRecurrence = z.infer<typeof WeeklyRecurrence>;
+
+export const BookingSeriesCreate = WeeklyRecurrence.extend({
+  roomId: z.number().int().positive(),
+  purpose: z.string().min(3).max(500),
+});
+export type BookingSeriesCreate = z.infer<typeof BookingSeriesCreate>;
+
+export const SeriesCancelQuery = z.object({ from: LocalDate.optional() });

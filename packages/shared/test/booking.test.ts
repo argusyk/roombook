@@ -6,6 +6,7 @@ import {
   AvailabilityQuery,
   IdParam,
   DevLogin,
+  BookingSeriesCreate,
 } from "../src/booking";
 
 const valid = {
@@ -135,5 +136,18 @@ describe("інші схеми", () => {
   it("DevLogin вимагає email", () => {
     expect(DevLogin.safeParse({ email: "admin@roombook.test" }).success).toBe(true);
     expect(DevLogin.safeParse({ email: "admin" }).success).toBe(false);
+  });
+});
+
+describe("BookingSeriesCreate", () => {
+  it("підставляє інтервал 1 тиждень, порожні виключення і Europe/Kyiv", () => {
+    const r = BookingSeriesCreate.parse({
+      roomId: 1,
+      purpose: "Консультація",
+      startLocal: "2027-02-02T14:00",
+      durationMin: 90,
+      untilLocalDate: "2027-05-25",
+    });
+    expect(r).toMatchObject({ intervalWeeks: 1, exdates: [], timeZone: "Europe/Kyiv" });
   });
 });
