@@ -28,8 +28,9 @@ export async function findConflicts(db: Db, req: ConflictQuery) {
     where: {
       roomId: req.roomId,
       cancelledAt: null,
-      startsAt: { lte: req.endsAt },
-      endsAt: { gte: req.startsAt },
+      // [start, end): суміжні не конфліктують
+      startsAt: { lt: req.endsAt },
+      endsAt: { gt: req.startsAt },
     },
     select: { id: true, roomId: true, seriesId: true, startsAt: true, endsAt: true },
     orderBy: { startsAt: "asc" },
