@@ -31,7 +31,7 @@ export async function findConflicts(db: Db, req: ConflictQuery) {
       startsAt: { lte: req.endsAt },
       endsAt: { gte: req.startsAt },
     },
-    select: { id: true, roomId: true, startsAt: true, endsAt: true },
+    select: { id: true, roomId: true, seriesId: true, startsAt: true, endsAt: true },
     orderBy: { startsAt: "asc" },
   });
   return rows;
