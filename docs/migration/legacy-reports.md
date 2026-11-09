@@ -6,7 +6,7 @@
 
 | Звіт | Файл | Стан |
 |---|---|---|
-| Тижнева завантаженість | `legacy-php/reports/room_week.php` | перенесено в `apps/api` (розд. 11), вимкнено (тег `legacy-room-week-final`) |
+| Тижнева завантаженість | `legacy-php/reports/room_week.php` (видалено; остання версія – тег `legacy-room-week-final`) | перенесено в `apps/api` (розд. 11), режим `new` |
 | Семестрова завантаженість | `legacy-php/reports/semester.php` | у черзі |
 | Зведення за кафедрами | `legacy-php/reports/by_department.php` | у черзі; містить прізвища викладачів – еталони поза репозиторієм |
 
