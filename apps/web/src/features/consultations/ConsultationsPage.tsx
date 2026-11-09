@@ -4,6 +4,7 @@ import { api, type Slot } from "../../api";
 import { formatKyiv } from "../../lib/time";
 import { Button, Card } from "../../ui";
 import { SlotForm } from "./SlotForm";
+import { WaitlistButton } from "./waitlist/WaitlistButton";
 
 export function ConsultationsPage({ canCreate }: { canCreate: boolean }) {
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -40,7 +41,11 @@ export function ConsultationsPage({ canCreate }: { canCreate: boolean }) {
             <li key={s.id}>
               {formatKyiv(s.startsAt)} · {s.teacher.name} · {s.room?.code ?? "онлайн"} · вільно{" "}
               {s.seatsLeft}
-              {s.seatsLeft > 0 && <Button onClick={() => book(s)}>Записатися</Button>}
+              {s.seatsLeft > 0 ? (
+                <Button onClick={() => book(s)}>Записатися</Button>
+              ) : (
+                <WaitlistButton slotId={s.id} />
+              )}
             </li>
           ))}
         </ul>
