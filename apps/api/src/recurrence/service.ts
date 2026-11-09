@@ -8,6 +8,7 @@ import {
 import { prisma } from "../db";
 import type { AuthUser } from "../auth/plugin";
 import { findConflicts } from "../booking/conflicts";
+import { isOverlapViolation } from "../booking/service";
 import { kyivDate } from "../time";
 import { expandWeekly, type Occurrence } from "./expand";
 
@@ -36,13 +37,26 @@ export async function createSeries(user: AuthUser, input: BookingSeriesCreate) {
   const room = await prisma.room.findUnique({ where: { id: input.roomId } });
   if (!room) throw new NotFoundError("Аудиторію");
 
-  // Перевірка конфліктів поки не атомарна відносно паралельних запитів
-  // (docs/backlog.md); записи серії створюються в одній транзакції.
+  // Попередня перевірка дає список зайнятих дат; атомарність «все або нічого»
+  // забезпечують транзакція і обмеження booking_no_overlap: 23P01 на будь-якому
+  // занятті відкочує всю серію (розд. 12).
   const conflicts = await conflictingDates(input.roomId, occurrences);
   if (conflicts.length) {
     throw new ConflictError(conflicts, "Частина дат серії зайнята");
   }
 
+  try {
+    return await insertSeries(user, input, occurrences);
+  } catch (e) {
+    if (!isOverlapViolation(e)) throw e;
+    throw new ConflictError(
+      await conflictingDates(input.roomId, occurrences),
+      "Частина дат серії зайнята",
+    );
+  }
+}
+
+function insertSeries(user: AuthUser, input: BookingSeriesCreate, occurrences: Occurrence[]) {
   return prisma.$transaction(async (tx) => {
     const series = await tx.bookingSeries.create({
       data: {

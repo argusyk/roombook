@@ -13,10 +13,34 @@ export interface BookingInput {
   purpose: string;
 }
 
+/** Точки ін'єкції лише для тестів гонки; у продакшені порожні. */
+export interface TestHooks {
+  afterConflictCheck?: () => Promise<void>;
+}
+
 const toDate = (v: Date | string) => (v instanceof Date ? v : new Date(v));
 
-/** Створює бронювання аудиторії, якщо воно не перетинає активних. */
-export async function createBooking(input: BookingInput) {
+const OVERLAP = "booking_no_overlap";
+
+// Форма помилки залежить від версії Prisma: код 23P01 і назва
+// обмеження трапляються в meta або лише в тексті. Регресійний тест
+// фіксує поведінку для нашої версії.
+export function isOverlapViolation(e: unknown): boolean {
+  const message = (e as Error)?.message ?? "";
+  const meta = JSON.stringify((e as { meta?: unknown })?.meta ?? {});
+  const text = `${message} ${meta}`;
+  return text.includes("23P01") || text.includes(OVERLAP);
+}
+
+/**
+ * Створює бронювання аудиторії. Попередня перевірка findConflicts() дає
+ * формі список конфліктів; гарантію неперетину дає обмеження
+ * booking_no_overlap у базі (23P01 → ConflictError).
+ */
+export async function createBooking(
+  input: BookingInput,
+  hooks: TestHooks = {},
+) {
   const data = {
     kind: "room" as const,
     roomId: input.roomId,
@@ -28,10 +52,17 @@ export async function createBooking(input: BookingInput) {
   const room = await prisma.room.findUnique({ where: { id: data.roomId } });
   if (!room) throw new NotFoundError("Аудиторію");
 
-  // Перевірка і запис поки не атомарні (docs/backlog.md).
   const conflicts = await findConflicts(prisma, data);
   if (conflicts.length) throw new ConflictError(conflicts);
-  return prisma.booking.create({ data });
+  await hooks.afterConflictCheck?.();          // лише для тестів гонки
+  try {
+    return await prisma.booking.create({ data });
+  } catch (e) {
+    if (isOverlapViolation(e)) {
+      throw new ConflictError(await findConflicts(prisma, data));
+    }
+    throw e;
+  }
 }
 
 /** Скасування: власник або адміністратор; ставить cancelledAt. */

@@ -73,7 +73,9 @@ model Booking {
   createdAt   DateTime          @default(now()) @db.Timestamptz(3)
   cancelledAt DateTime?         @db.Timestamptz(3)   // скасування; NULL = активне
 
-  // CHECK booking_kind_target, booking_interval – міграція init (вручну)
+  // CHECK booking_kind_target, booking_interval – міграція init (вручну);
+  // EXCLUDE booking_no_overlap (roomId =, tstzrange [) &&, WHERE cancelledAt IS NULL) –
+  // міграція 20261104090000_booking_no_overlap (розд. 12). Не прибирати.
 }
 
 model BookingSeries {
