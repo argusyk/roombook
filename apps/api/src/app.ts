@@ -5,6 +5,7 @@ import { isDomainError } from "@roombook/shared/errors";
 import { prisma as defaultPrisma } from "./db";
 import { authRoutes } from "./auth/routes";
 import { bookingRoutes } from "./booking/routes";
+import { calendarRoutes } from "./calendar/routes";
 import { seriesRoutes } from "./recurrence/routes";
 import { meRoutes } from "./me/routes";
 import { roomWeekRoutes } from "./reports/room-week.route";
@@ -53,5 +54,6 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(slotRoutes);
   await app.register(meRoutes);
   await app.register(roomWeekRoutes);
+  await app.register(calendarRoutes);
   return app;
 }
