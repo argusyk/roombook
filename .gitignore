@@ -10,6 +10,8 @@ apps/web/playwright-report/
 apps/web/e2e/.auth/
 apps/web/e2e/artifacts/
 /reports/
+.stryker-tmp/
+apps/api/reports/
 .DS_Store
 
 # legacy: параметри MySQL лише локально; експорти – у ~/roombook-data/legacy-exports/

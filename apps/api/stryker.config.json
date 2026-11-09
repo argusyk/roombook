@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Мутанти в тексті поля message відповіді 409 – еквівалентні для модульних тестів API (їх перевіряє e2e); рішення розд. 10, не витрачайте на них час.",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.config.ts" },
+  "mutate": ["src/booking/conflicts.ts", "src/booking/service.ts"],
+  "reporters": ["clear-text", "html"],
+  "thresholds": { "high": 90, "low": 75, "break": 70 }
+}
