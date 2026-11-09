@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api";
 import { Card } from "../../ui";
+import { percentOf } from "@roombook/shared";
 
 interface RoomDay {
   roomId: number;
@@ -14,7 +15,7 @@ export const PAIRS_PER_DAY = 8;
 /** Частка зайнятих пар за день, у відсотках. */
 export function occupancyPercent(freePairs: number): number {
   const busy = PAIRS_PER_DAY - freePairs;
-  return Math.round((busy / PAIRS_PER_DAY) * 100);
+  return percentOf(busy, PAIRS_PER_DAY);
 }
 
 export function RoomsPage({ date }: { date: string }) {
