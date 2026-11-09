@@ -8,7 +8,7 @@ import {
 import { prisma } from "../db";
 import type { AuthUser } from "../auth/plugin";
 import { findConflicts } from "../booking/conflicts";
-import { isOverlapViolation } from "../booking/service";
+import { isDeadlock, isOverlapViolation } from "../booking/service";
 import { kyivDate } from "../time";
 import { expandWeekly, type Occurrence } from "./expand";
 
@@ -45,14 +45,16 @@ export async function createSeries(user: AuthUser, input: BookingSeriesCreate) {
     throw new ConflictError(conflicts, "Частина дат серії зайнята");
   }
 
-  try {
-    return await insertSeries(user, input, occurrences);
-  } catch (e) {
-    if (!isOverlapViolation(e)) throw e;
-    throw new ConflictError(
-      await conflictingDates(input.roomId, occurrences),
-      "Частина дат серії зайнята",
-    );
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await insertSeries(user, input, occurrences);
+    } catch (e) {
+      if (!isOverlapViolation(e) && !isDeadlock(e)) throw e;
+      const dates = await conflictingDates(input.roomId, occurrences);
+      if (dates.length || attempt >= 3) {
+        throw new ConflictError(dates, "Частина дат серії зайнята");
+      }
+    }
   }
 }
 

@@ -23,7 +23,7 @@ test("два паралельні бронювання одного слоту: 
     const rejected = results.find(
       (r) => r.status === "rejected",
     ) as PromiseRejectedResult;
-    expect(rejected.reason).toBeInstanceOf(ConflictError);
+    expect(rejected.reason, String(rejected.reason?.message)).toBeInstanceOf(ConflictError);
     const where = { roomId: 1, cancelledAt: null };
     expect(await prisma.booking.count({ where })).toBe(1);
   }
