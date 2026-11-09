@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { BookingCreate } from "@roombook/shared";
 import { Button } from "../../ui";
+import { fieldErrors, type BookingField, type FieldErrors } from "./fieldErrors";
 import { toPayload, type BookingFormValues } from "./toPayload";
 
 export interface RoomOption {
@@ -14,6 +15,9 @@ export interface BookingFormProps {
   initial?: Partial<BookingFormValues>;
 }
 
+const FIELD_ORDER: BookingField[] =
+  ["roomId", "startsAt", "endsAt", "purpose"];
+
 export function BookingForm({ rooms, onCreate, initial }: BookingFormProps) {
   const [values, setValues] = useState<BookingFormValues>({
     roomId: "",
@@ -22,26 +26,39 @@ export function BookingForm({ rooms, onCreate, initial }: BookingFormProps) {
     purpose: "",
     ...initial,
   });
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!values.roomId) return setError("Оберіть аудиторію");
-    if (values.purpose.trim().length < 5)
-      return setError("Мета занадто коротка");
-    const res = BookingCreate.safeParse(toPayload(values));
-    if (!res.success)
-      return setError(res.error.issues[0]?.message ?? "Invalid input");
-    setError(null);
-    void onCreate(res.data);
+    const parsed = BookingCreate.safeParse(toPayload(values));
+    if (!parsed.success) {
+      const next = fieldErrors(parsed.error);
+      setErrors(next);
+      const first = FIELD_ORDER.find((f) => next[f]);
+      if (first) document.getElementById(first)?.focus();
+      return;
+    }
+    setErrors({});
+    void onCreate(parsed.data);
   }
+
+  /** Атрибути доступності поля: aria-invalid і зв'язок з текстом помилки. */
+  const a11y = (f: BookingField) => ({
+    id: f,
+    name: f,
+    "aria-invalid": errors[f] ? true : undefined,
+    "aria-describedby": errors[f] ? `${f}-error` : undefined,
+  });
+  const error = (f: BookingField) =>
+    errors[f] && (
+      <p id={`${f}-error`} className="field-error">{errors[f]}</p>
+    );
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      {error && <p className="form-error">{error}</p>}
-      <label>Аудиторія</label>
+      <label htmlFor="roomId">Аудиторія</label>
       <select
-        name="roomId"
+        {...a11y("roomId")}
         value={values.roomId}
         onChange={(e) => setValues({ ...values, roomId: e.target.value })}
       >
@@ -52,26 +69,34 @@ export function BookingForm({ rooms, onCreate, initial }: BookingFormProps) {
           </option>
         ))}
       </select>
-      <label>Початок</label>
+      {error("roomId")}
+
+      <label htmlFor="startsAt">Початок</label>
       <input
         type="datetime-local"
-        name="startsAt"
+        {...a11y("startsAt")}
         value={values.startsAt}
         onChange={(e) => setValues({ ...values, startsAt: e.target.value })}
       />
-      <label>Завершення</label>
+      {error("startsAt")}
+
+      <label htmlFor="endsAt">Завершення</label>
       <input
         type="datetime-local"
-        name="endsAt"
+        {...a11y("endsAt")}
         value={values.endsAt}
         onChange={(e) => setValues({ ...values, endsAt: e.target.value })}
       />
-      <label>Мета бронювання</label>
+      {error("endsAt")}
+
+      <label htmlFor="purpose">Мета бронювання</label>
       <textarea
-        name="purpose"
+        {...a11y("purpose")}
         value={values.purpose}
         onChange={(e) => setValues({ ...values, purpose: e.target.value })}
       />
+      {error("purpose")}
+
       <Button type="submit">Забронювати</Button>
     </form>
   );

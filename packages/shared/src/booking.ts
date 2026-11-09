@@ -19,6 +19,7 @@ export const BookingCreate = z
   })
   .refine(endsAfterStart, {
     message: "Кінець бронювання має бути пізніше за початок",
+    path: ["endsAt"],
   });
 export type BookingCreate = z.infer<typeof BookingCreate>;
 

@@ -77,6 +77,12 @@ describe("BookingCreate", () => {
     expect(r.success).toBe(true);
   });
 
+  it("помилка порядку часу прив'язана до поля endsAt", () => {
+    const r = BookingCreate.safeParse({ ...valid, endsAt: valid.startsAt });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path).toEqual(["endsAt"]);
+  });
+
   it("повідомлення про порядок часу українською", () => {
     const r = BookingCreate.safeParse({ ...valid, endsAt: valid.startsAt });
     expect(r.success).toBe(false);
