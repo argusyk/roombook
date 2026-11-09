@@ -17,6 +17,11 @@ export async function resetDb(): Promise<void> {
   await seedBase(prisma);
 }
 
+/** Лише бронювання (і серії) – швидше за resetDb для тестів властивостей. */
+export async function resetBookings(): Promise<void> {
+  await prisma.$executeRawUnsafe(`TRUNCATE "Booking", "BookingSeries" RESTART IDENTITY CASCADE`);
+}
+
 /** Інтервал бронювання аудиторії: початок у UTC і тривалість у хвилинах. */
 export function slot(roomId: number, startIso: string, minutes: number) {
   const startsAt = new Date(startIso);
