@@ -80,6 +80,24 @@ export class UnauthorizedError extends DomainError {
   }
 }
 
+/** Запит коректний, але стан ресурсу його не дозволяє (422), напр. hasSeats, closed. */
+export class UnprocessableError extends DomainError {
+  readonly status = 422;
+  readonly code = "UNPROCESSABLE";
+
+  constructor(
+    readonly reason: string,
+    message = "Дію зараз виконати не можна",
+  ) {
+    super(message);
+    this.name = "UnprocessableError";
+  }
+
+  override toJSON() {
+    return { ...super.toJSON(), reason: this.reason };
+  }
+}
+
 export function isDomainError(e: unknown): e is DomainError {
   return e instanceof DomainError;
 }
