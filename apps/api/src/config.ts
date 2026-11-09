@@ -10,6 +10,10 @@ const Env = z.object({
   REPORTS_ROOM_WEEK_MODE: z.enum(["legacy", "shadow", "new"]).default("new"),
   LEGACY_REPORTS_URL: z.string().url().optional(), // адреса старих PHP-звітів (legacy, shadow)
   REPORTS_DIFF_DIR: z.string().default("reports/diffs"),
+  // розд. 13: пошта – log (dev/test, лист у журнал) або smtp (продакшн)
+  MAIL_TRANSPORT: z.enum(["log", "smtp"]).default("log"),
+  SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default("RoomBook <noreply@roombook.test>"),
 });
 
 export type Config = z.infer<typeof Env>;

@@ -18,6 +18,10 @@ enum BookingKind {
   consultation  // запис студента на слот консультації
 }
 
+enum ReminderKind {
+  h1            // нагадування за 1 год до початку (розд. 13)
+}
+
 model User {
   id        Int                @id @default(autoincrement())
   email     String             @unique
@@ -52,6 +56,7 @@ model ConsultationSlot {
   seats     Int       @default(1)             // скільки студентів можуть записатися
   note      String?
   bookings  Booking[]
+  reminders ReminderLog[]
 
   @@index([startsAt])
 }
@@ -93,4 +98,14 @@ model BookingSeries {
   purpose        String
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   bookings       Booking[]
+}
+
+model ReminderLog {                                              // розд. 13, PR #207
+  id     Int              @id @default(autoincrement())
+  slot   ConsultationSlot @relation(fields: [slotId], references: [id])
+  slotId Int
+  kind   ReminderKind
+  sentAt DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@unique([slotId, kind])
 }
