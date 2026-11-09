@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: typecheck · lint · unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      - run: pnpm -r lint
+      - name: Модульні тести (без БД)
+        run: |
+          pnpm --filter @roombook/shared test
+          pnpm --filter @roombook/web test
+          pnpm --filter @roombook/api test:unit
+
+  integration:
+    name: test:int (PostgreSQL 16)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: roombook
+          POSTGRES_PASSWORD: roombook
+          POSTGRES_DB: roombook_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roombook"
+          --health-interval 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://roombook:roombook@localhost:5432/roombook_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @roombook/api exec prisma migrate deploy
+      - run: pnpm --filter @roombook/api test:int
