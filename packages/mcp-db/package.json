@@ -1,0 +1,23 @@
+{
+  "name": "@roombook/mcp-db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP-сервер roombook_db: доступ лише для читання до реплікації RoomBook",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "pg": "^8.16.0",
+    "zod": "~3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.0",
+    "typescript": "~5.9.3"
+  }
+}

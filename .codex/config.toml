@@ -1,7 +1,29 @@
 # roombook/.codex/config.toml – властивості проєкту, а не режиму роботи
 # НЕ додавати сюди model, model_reasoning_effort, sandbox_mode,
 # approval_policy: проєктний файл сильніший за профіль і зламає -p safe.
+# Проєктний файл діє лише для довіреного (trusted) проєкту.
 
 [features]
 # правила RoomBook живуть в AGENTS.md і проходять рев'ю (розділ 5)
 memories = false
+
+# MCP-сервер бази лише для читання (розд. 8). Спершу:
+#   pnpm --filter @roombook/mcp-db build
+# Рядок підключення ROOMBOOK_RO_URL – у вашому оточенні, не в репозиторії.
+[mcp_servers.roombook_db]
+command = "node"
+args = ["packages/mcp-db/dist/server.js"]
+cwd = "/home/student/src/roombook"   # абсолютний шлях до вашого клону (~/src/roombook)
+env_vars = ["ROOMBOOK_RO_URL"]       # передати процесу сервера змінну оточення
+enabled_tools = ["list_tables", "query"]
+startup_timeout_sec = 10
+tool_timeout_sec = 30
+default_tools_approval_mode = "auto"
+
+# Керований браузер для перевірки інтерфейсу проти dev-сервера (розд. 8).
+# Версію зафіксовано: пакет виконується на вашій машині (ланцюг постачання, розд. 17).
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@0.0.84", "--headless", "--isolated"]
+tool_timeout_sec = 60
+default_tools_approval_mode = "prompt"
