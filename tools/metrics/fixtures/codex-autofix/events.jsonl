@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"t1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"type":"command_execution"}}
+{"type":"turn.completed","usage":{"input_tokens":1}}

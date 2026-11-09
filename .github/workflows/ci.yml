@@ -45,6 +45,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r lint
       - run: pnpm -r typecheck
+      - name: Скрипти метрик (додаток К) на фікстурі
+        run: |
+          out="$(bash tools/metrics/runs-to-csv.sh tools/metrics/fixtures)"
+          echo "$out"
+          test "$(printf '%s\n' "$out" | wc -l)" -eq 2
 
   test:
     name: test
