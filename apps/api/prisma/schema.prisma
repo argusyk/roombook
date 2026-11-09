@@ -18,6 +18,12 @@ enum BookingKind {
   consultation  // запис студента на слот консультації
 }
 
+enum WaitlistStatus {
+  waiting
+  promoted
+  left
+}
+
 enum ReminderKind {
   h1            // нагадування за 1 год до початку (розд. 13)
 }
@@ -31,6 +37,7 @@ model User {
   bookings  Booking[]
   series    BookingSeries[]
   slots     ConsultationSlot[] @relation("SlotTeacher")
+  waitlist  WaitlistEntry[]
 }
 
 model Room {
@@ -56,6 +63,7 @@ model ConsultationSlot {
   seats     Int       @default(1)             // скільки студентів можуть записатися
   note      String?
   bookings  Booking[]
+  waitlist  WaitlistEntry[]
   reminders ReminderLog[]
 
   @@index([startsAt])
@@ -110,4 +118,19 @@ model ReminderLog {                                              // розд. 13
   sentAt DateTime         @default(now()) @db.Timestamptz(3)
 
   @@unique([slotId, kind])
+}
+
+model WaitlistEntry {                                            // розд. 14, PR #231
+  id         Int              @id @default(autoincrement())
+  slot       ConsultationSlot @relation(fields: [slotId], references: [id])
+  slotId     Int
+  user       User             @relation(fields: [userId], references: [id])
+  userId     Int
+  position   Int              // FIFO, з 1
+  status     WaitlistStatus   @default(waiting)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+  promotedAt DateTime?        @db.Timestamptz(3)
+
+  @@unique([slotId, userId])
+  @@index([slotId, status, position])
 }

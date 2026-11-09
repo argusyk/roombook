@@ -1,6 +1,7 @@
 import { ConflictError, ForbiddenError, NotFoundError } from "@roombook/shared/errors";
 import { prisma } from "../db";
 import type { AuthUser } from "../auth/plugin";
+import { promoteNext } from "../waitlist/service";
 import { findConflicts } from "./conflicts";
 
 export { ConflictError };
@@ -80,15 +81,22 @@ export async function createBooking(
   }
 }
 
-/** Скасування: власник або адміністратор; ставить cancelledAt. */
+/**
+ * Скасування: власник або адміністратор; ставить cancelledAt. Для запису на
+ * консультацію в тій самій транзакції просуває першого з листа очікування (розд. 14).
+ */
 export async function cancelBooking(id: number, user: AuthUser) {
   const booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking || booking.cancelledAt) throw new NotFoundError("Бронювання");
   if (booking.userId !== user.id && user.role !== "admin") {
     throw new ForbiddenError("Скасувати можна лише власне бронювання");
   }
-  return prisma.booking.update({
-    where: { id },
-    data: { cancelledAt: new Date() },
+  return prisma.$transaction(async (tx) => {
+    const cancelled = await tx.booking.update({
+      where: { id },
+      data: { cancelledAt: new Date() },
+    });
+    const promoted = booking.slotId ? await promoteNext(tx, booking.slotId) : null;
+    return { cancelled, promoted };
   });
 }

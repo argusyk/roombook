@@ -12,6 +12,7 @@ import { roomWeekRoutes } from "./reports/room-week.route";
 import { roomRoutes } from "./rooms/routes";
 import { slotRoutes } from "./slots/routes";
 import { statsRoutes } from "./stats/routes";
+import { waitlistRoutes } from "./waitlist/routes";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -57,5 +58,6 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(roomWeekRoutes);
   await app.register(calendarRoutes);
   await app.register(statsRoutes);
+  await app.register(waitlistRoutes);
   return app;
 }
