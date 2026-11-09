@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/e2e/.auth/
+apps/web/e2e/artifacts/
+reports/
+.DS_Store
+
+# legacy: експорти CSV лежать поруч зі звітами (історично; див. розд. 7)
+legacy-php/exports/*.csv

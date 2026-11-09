@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+# legacy-php збережено в cp1251: не нормалізувати і не перекодовувати
+legacy-php/**/*.php -text
+# еталони звітів – байти cp1251 з CRLF
+apps/api/test/golden/**/*.csv -text binary
