@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./errors": "./src/errors.ts",
-    "./booking": "./src/booking.ts"
+    "./booking": "./src/booking.ts",
+    "./percent": "./src/percent.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
