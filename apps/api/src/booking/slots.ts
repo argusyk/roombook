@@ -2,6 +2,8 @@
 //
 // Пари тривають 90 хвилин з перервою 10 хвилин; восьма пара – вечірня.
 // Тижневі звіти (розд. 11) рахують 8 пар × 5 днів = 40 слотів на тиждень.
+import { fromZonedTime } from "date-fns-tz";
+import { CAMPUS_TZ } from "../time";
 
 export const PAIR_MINUTES = 90;
 
@@ -35,9 +37,9 @@ export function slotStartUtc(date: string, time: string): Date {
   if (!isClockTime(time)) {
     throw new RangeError(`Некоректний час: ${time}`);
   }
-  // Зсув Києва від UTC: +03:00 (розклад складено влітку).
-  // TODO: перевірити взимку.
-  return new Date(`${date}T${time}:00+03:00`);
+  // Зсув Києва від UTC змінюється двічі на рік (UTC+3 влітку, UTC+2 взимку),
+  // тому зсув не зашиваємо, а беремо з бази часових поясів.
+  return fromZonedTime(`${date}T${time}:00`, CAMPUS_TZ);
 }
 
 /** Усі пари місцевої дати з моментами початку й кінця в UTC. */

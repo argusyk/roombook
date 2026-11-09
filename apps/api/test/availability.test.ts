@@ -19,6 +19,14 @@ describe("розклад пар у UTC", () => {
     );
   });
 
+  it.each([
+    ["2026-10-23", "09:00", "2026-10-23T06:00:00.000Z"], // літній час, UTC+3
+    ["2026-10-26", "09:00", "2026-10-26T07:00:00.000Z"], // після 25.10, UTC+2
+    ["2026-03-30", "09:00", "2026-03-30T06:00:00.000Z"], // після 29.03, UTC+3
+  ])("slotStartUtc(%s, %s) = %s", (date, time, iso) => {
+    expect(slotStartUtc(date, time).toISOString()).toBe(iso);
+  });
+
   it("день має вісім пар по 90 хвилин", () => {
     const pairs = pairsOfDay("2026-10-23");
     expect(pairs).toHaveLength(8);
