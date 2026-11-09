@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  teacher
+  admin
+}
+
+enum BookingKind {
+  room          // бронювання аудиторії
+  consultation  // запис студента на слот консультації
+}
+
+model User {
+  id        Int                @id @default(autoincrement())
+  email     String             @unique
+  name      String
+  role      Role               @default(student)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  bookings  Booking[]
+  slots     ConsultationSlot[] @relation("SlotTeacher")
+}
+
+model Room {
+  id           Int                @id @default(autoincrement())
+  code         String             @unique   // "A-314"
+  name         String                       // назва українською, для звітів
+  building     String                       // "Корпус A"
+  capacity     Int
+  hasProjector Boolean            @default(false)
+  bookings     Booking[]
+  slots        ConsultationSlot[]
+}
+
+model ConsultationSlot {
+  id        Int       @id @default(autoincrement())
+  teacher   User      @relation("SlotTeacher", fields: [teacherId], references: [id])
+  teacherId Int
+  room      Room?     @relation(fields: [roomId], references: [id])
+  roomId    Int?                              // аудиторія необов'язкова
+  startsAt  DateTime  @db.Timestamptz(3)
+  endsAt    DateTime  @db.Timestamptz(3)
+  seats     Int       @default(1)             // скільки студентів можуть записатися
+  note      String?
+  bookings  Booking[]
+
+  @@index([startsAt])
+}
+
+model Booking {
+  id          Int               @id @default(autoincrement())
+  kind        BookingKind       @default(room)
+  room        Room?             @relation(fields: [roomId], references: [id])
+  roomId      Int?                            // для kind = room
+  slot        ConsultationSlot? @relation(fields: [slotId], references: [id])
+  slotId      Int?                            // для kind = consultation
+  user        User              @relation(fields: [userId], references: [id])
+  userId      Int
+  startsAt    DateTime          @db.Timestamptz(3)   // зберігається в UTC
+  endsAt      DateTime          @db.Timestamptz(3)
+  purpose     String                          // вільний текст від користувача
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  cancelledAt DateTime?         @db.Timestamptz(3)   // скасування; NULL = активне
+
+  // CHECK booking_kind_target, booking_interval – міграція init (вручну)
+}
