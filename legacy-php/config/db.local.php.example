@@ -1,0 +1,9 @@
+<?php
+// —коп≥юйте в db.local.php ≥ впиш≥ть параметри MySQL зв≥т≥в.
+// db.local.php у .gitignore: справжн≥ обл≥ков≥ дан≥ в репозитор≥й не потрапл€ють.
+return array(
+    'host'     => 'localhost',
+    'user'     => '[користувач MySQL зв≥т≥в]',
+    'password' => '[пароль з≥ сховища секрет≥в]',
+    'database' => 'schedule',
+);

@@ -1,0 +1,8 @@
+# ~/.codex/deps.config.toml – лише встановлення й оновлення залежностей
+# Запуск: codex -p deps (коротка сесія в окремій гілці)
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+web_search = "disabled"
+
+[sandbox_workspace_write]
+network_access = true

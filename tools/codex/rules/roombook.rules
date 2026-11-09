@@ -1,0 +1,45 @@
+# tools/codex/rules/roombook.rules – правила виконання команд агента (execpolicy, Starlark).
+# Встановлення: tools/codex/install-profiles.sh копіює файл у ~/.codex/rules/.
+# Перевірка перед застосуванням: codex execpolicy check --rules tools/codex/rules/roombook.rules <команда>
+#
+# Увага: decision = "allow" виконує команду ПОЗА пісочницею без питання.
+# Для тестів (це код, який щойно змінив агент) allow на машині розробника
+# не вживаємо – лише "prompt" (розд. 7).
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Push only after human review of the diff",
+    match = ["git push origin agent/api-pagination"],
+)
+prefix_rule(
+    pattern = ["git", "clean"],
+    decision = "prompt",
+    justification = "git clean deletes untracked and ignored files",
+    match = ["git clean -fdx legacy-php/"],
+)
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "prompt",
+    justification = "Discards uncommitted work",
+    match = ["git reset --hard HEAD~1"],
+)
+prefix_rule(
+    pattern = ["docker"],
+    decision = "forbidden",
+    justification = "Containers are started by the developer, " +
+                    "not the agent",
+    match = ["docker compose up -d"],
+)
+prefix_rule(
+    pattern = ["pnpm", ["add", "update", "remove"]],
+    decision = "prompt",
+    justification = "Dependency changes go through the deps profile and PR review",
+    match = ["pnpm add left-pad", "pnpm update fastify"],
+)
+prefix_rule(
+    pattern = ["pnpm", "--filter", "@roombook/api", ["test", "test:int"]],
+    decision = "prompt",
+    justification = "DB tests run outside the sandbox: approve the exact command once",
+    match = ["pnpm --filter @roombook/api test:int"],
+)

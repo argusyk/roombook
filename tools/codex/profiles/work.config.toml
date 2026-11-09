@@ -4,13 +4,15 @@
 #   codex -p work --add-dir ../shared
 sandbox_mode = "workspace-write"
 approval_policy = "on-request"
+approvals_reviewer = "user"
 model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 web_search = "cached"
 
 [sandbox_workspace_write]
-network_access = false
+writable_roots = []                 # нічого поза репозиторієм
+network_access = false              # мережа лише через погодження
 
 [shell_environment_policy]
-inherit = "core"
+inherit = "core"                    # без DATABASE_URL та інших секретів
 set = { TZ = "UTC" }
