@@ -39,6 +39,13 @@ describe("WaitlistButton", () => {
     expect(await screen.findByText(/є вільні місця/)).toBeInTheDocument();
   });
 
+  it("422 closed – запис закрито за 2 год до початку (#236)", async () => {
+    const join = vi.fn().mockRejectedValue(new ApiError(422, { reason: "closed" }));
+    render(<WaitlistButton slotId={3} join={join} />);
+    await userEvent.click(joinBtn());
+    expect(await screen.findByText("Запис закрито: до початку менше 2 годин")).toBeInTheDocument();
+  });
+
   it("вихід з листа повертає кнопку", async () => {
     const leave = vi.fn().mockResolvedValue(undefined);
     render(<WaitlistButton slotId={3} join={vi.fn().mockResolvedValue({ entry, ahead: 0 })} leave={leave} />);

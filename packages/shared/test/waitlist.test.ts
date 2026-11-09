@@ -16,7 +16,7 @@ describe("контракт листа очікування", () => {
   });
 
   it("коди відповідей – значення, спільні для сервера, тестів і клієнта", () => {
-    expect(waitlistRoutes.join).toMatchObject({ ok: 201, conflict: 409, hasSeats: 422 });
+    expect(waitlistRoutes.join).toMatchObject({ ok: 201, conflict: 409, hasSeats: 422, closed: 422 });
     expect(waitlistRoutes.leave.notFound).toBe(404);
     expect(waitlistRoutes.mine.path).toBe("/me/waitlist");
   });

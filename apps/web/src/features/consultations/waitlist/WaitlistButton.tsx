@@ -30,7 +30,9 @@ export function WaitlistButton({
       const res = await join(slotId); // статус показуємо лише після відповіді сервера
       setAhead(res.ahead);
     } catch (e) {
-      if (e instanceof ApiError && e.status === waitlistRoutes.join.hasSeats) {
+      if (e instanceof ApiError && e.status === waitlistRoutes.join.closed && e.body.reason === "closed") {
+        setMessage("Запис закрито: до початку менше 2 годин");
+      } else if (e instanceof ApiError && e.status === waitlistRoutes.join.hasSeats) {
         setMessage("У слоті є вільні місця – запишіться напряму");
       } else if (e instanceof ApiError && e.status === waitlistRoutes.join.conflict) {
         setMessage("Ви вже записані або вже в листі очікування");

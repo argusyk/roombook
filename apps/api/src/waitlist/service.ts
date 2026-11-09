@@ -5,6 +5,7 @@ import { ConflictError, NotFoundError, UnprocessableError } from "@roombook/shar
 import { prisma } from "../db";
 import type { AuthUser } from "../auth/plugin";
 import { seatsLeft } from "../slots/service";
+import { isClosedForSignup } from "./notify";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -18,6 +19,9 @@ export async function joinWaitlist(slotId: number, user: AuthUser) {
       SELECT id FROM "ConsultationSlot" WHERE id = ${slotId} FOR UPDATE`;
     if (!locked.length) throw new NotFoundError("Слот консультації");
     const slot = await tx.consultationSlot.findUniqueOrThrow({ where: { id: slotId } });
+    if (isClosedForSignup(slot.startsAt)) {
+      throw new UnprocessableError("closed", "Запис закрито: до початку менше 2 годин");
+    }
 
     const active = await tx.booking.findMany({
       where: { slotId, cancelledAt: null },
@@ -80,9 +84,10 @@ export async function myWaitlist(user: AuthUser) {
  * Промоція першого в черзі – у транзакції скасування (інваріант 4):
  * одразу створює бронювання (інваріант 5). Повертає просунутий запис або null.
  */
-export async function promoteNext(tx: Tx, slotId: number) {
+export async function promoteNext(tx: Tx, slotId: number, now = new Date()) {
   const slot = await tx.consultationSlot.findUnique({ where: { id: slotId } });
-  if (!slot) return null;
+  // за 2 год до початку запис закрито: місце повертається у вільний доступ
+  if (!slot || isClosedForSignup(slot.startsAt, now)) return null;
   const active = await tx.booking.count({ where: { slotId, cancelledAt: null } });
   if (seatsLeft(slot.seats, active) === 0) return null;
   const next = await tx.waitlistEntry.findFirst({

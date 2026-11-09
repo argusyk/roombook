@@ -4,7 +4,7 @@ const TOKEN_KEY = "roombook.token";
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    readonly body: { error?: string; message?: string; conflicts?: unknown[] },
+    readonly body: { error?: string; message?: string; conflicts?: unknown[]; reason?: string },
   ) {
     super(body.message ?? `HTTP ${status}`);
   }

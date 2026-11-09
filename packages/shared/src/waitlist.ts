@@ -31,7 +31,7 @@ export type JoinWaitlistResponse = z.infer<typeof JoinWaitlistResponse>;
 
 export const waitlistRoutes = {
   join:  { method: "POST",   path: "/slots/:slotId/waitlist",
-           ok: 201, conflict: 409, hasSeats: 422 },
+           ok: 201, conflict: 409, hasSeats: 422, closed: 422 },
   leave: { method: "DELETE", path: "/slots/:slotId/waitlist",
            ok: 204, notFound: 404 },
   mine:  { method: "GET",    path: "/me/waitlist", ok: 200 },

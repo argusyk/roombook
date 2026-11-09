@@ -1,6 +1,8 @@
 import { ConflictError, ForbiddenError, NotFoundError } from "@roombook/shared/errors";
 import { prisma } from "../db";
 import type { AuthUser } from "../auth/plugin";
+import type { Mailer } from "../mail";
+import { notifyPromotion } from "../waitlist/notify";
 import { promoteNext } from "../waitlist/service";
 import { findConflicts } from "./conflicts";
 
@@ -85,13 +87,13 @@ export async function createBooking(
  * Скасування: власник або адміністратор; ставить cancelledAt. Для запису на
  * консультацію в тій самій транзакції просуває першого з листа очікування (розд. 14).
  */
-export async function cancelBooking(id: number, user: AuthUser) {
+export async function cancelBooking(id: number, user: AuthUser, mailer?: Mailer) {
   const booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking || booking.cancelledAt) throw new NotFoundError("Бронювання");
   if (booking.userId !== user.id && user.role !== "admin") {
     throw new ForbiddenError("Скасувати можна лише власне бронювання");
   }
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const cancelled = await tx.booking.update({
       where: { id },
       data: { cancelledAt: new Date() },
@@ -99,4 +101,11 @@ export async function cancelBooking(id: number, user: AuthUser) {
     const promoted = booking.slotId ? await promoteNext(tx, booking.slotId) : null;
     return { cancelled, promoted };
   });
+  // лист – лише після COMMIT: за відкату транзакції сповіщення не буде
+  if (result.promoted && mailer) {
+    await notifyPromotion(prisma, mailer, result.promoted).catch(() => {
+      /* збій пошти не скасовує вже зафіксовану промоцію */
+    });
+  }
+  return result;
 }

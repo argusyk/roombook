@@ -16,7 +16,7 @@ export async function bookingRoutes(app: FastifyInstance) {
   app.delete("/bookings/:id", async (req, reply) => {
     const user = await currentUser(req, app.prisma);
     const { id } = IdParam.parse(req.params);
-    await cancelBooking(id, user);
+    await cancelBooking(id, user, app.mailer);
     return reply.code(204).send();
   });
 }

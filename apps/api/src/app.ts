@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { ZodError } from "zod";
 import { isDomainError } from "@roombook/shared/errors";
 import { prisma as defaultPrisma } from "./db";
+import { createMailer, type Mailer } from "./mail";
 import { authRoutes } from "./auth/routes";
 import { bookingRoutes } from "./booking/routes";
 import { calendarRoutes } from "./calendar/routes";
@@ -17,17 +18,20 @@ import { waitlistRoutes } from "./waitlist/routes";
 declare module "fastify" {
   interface FastifyInstance {
     prisma: PrismaClient;
+    mailer: Mailer;
   }
 }
 
 export interface AppOptions {
   prisma?: PrismaClient;
+  mailer?: Mailer;
   logger?: boolean;
 }
 
 export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
   app.decorate("prisma", opts.prisma ?? defaultPrisma);
+  app.decorate("mailer", opts.mailer ?? createMailer());
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof ZodError) {
