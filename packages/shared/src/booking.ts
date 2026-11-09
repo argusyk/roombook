@@ -33,6 +33,7 @@ export const SlotCreate = z
   })
   .refine(endsAfterStart, {
     message: "Кінець консультації має бути пізніше за початок",
+    path: ["endsAt"],
   });
 export type SlotCreate = z.infer<typeof SlotCreate>;
 

@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { BookingCreate } from "@roombook/shared";
 import { Button } from "../../ui";
-import { fieldErrors, type BookingField, type FieldErrors } from "./fieldErrors";
+import { fieldErrors, firstInvalid } from "../../lib/forms/fieldErrors";
+import { BOOKING_MESSAGES, type BookingField, type FieldErrors } from "./messages";
 import { toPayload, type BookingFormValues } from "./toPayload";
 
 export interface RoomOption {
@@ -32,9 +33,9 @@ export function BookingForm({ rooms, onCreate, initial }: BookingFormProps) {
     e.preventDefault();
     const parsed = BookingCreate.safeParse(toPayload(values));
     if (!parsed.success) {
-      const next = fieldErrors(parsed.error);
+      const next = fieldErrors(parsed.error, BOOKING_MESSAGES);
       setErrors(next);
-      const first = FIELD_ORDER.find((f) => next[f]);
+      const first = firstInvalid(FIELD_ORDER, next);
       if (first) document.getElementById(first)?.focus();
       return;
     }

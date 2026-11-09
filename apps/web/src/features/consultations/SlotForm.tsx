@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { SlotCreate } from "@roombook/shared";
+import { fieldErrors, firstInvalid, type FieldErrors, type MessageMap } from "../../lib/forms/fieldErrors";
 import { kyivLocalToIso } from "../../lib/time";
 import { Button } from "../../ui";
 
@@ -10,6 +11,24 @@ export interface SlotFormValues {
   note: string;
 }
 
+type SlotField = "startsAt" | "endsAt" | "seats" | "note";
+
+/** Тексти помилок форми слота. Межі (1–30 місць, 500 символів) – зі схеми SlotCreate. */
+export const SLOT_MESSAGES: MessageMap<SlotField> = {
+  startsAt: () => "Вкажіть дату й час початку",
+  endsAt: (i) => (i.code === "custom" ? i.message : "Вкажіть дату й час завершення"),
+  seats: () => "Кількість місць: від 1 до 30",
+  note: () => "Примітка: не більше 500 символів",
+};
+
+const FIELD_ORDER: SlotField[] = ["startsAt", "endsAt", "seats", "note"];
+const LABELS: Record<SlotField, string> = {
+  startsAt: "Початок",
+  endsAt: "Завершення",
+  seats: "Кількість місць",
+  note: "Примітка",
+};
+
 export function SlotForm({ onCreate }: { onCreate: (s: SlotCreate) => void | Promise<void> }) {
   const [values, setValues] = useState<SlotFormValues>({
     startsAt: "",
@@ -17,54 +36,51 @@ export function SlotForm({ onCreate }: { onCreate: (s: SlotCreate) => void | Pro
     seats: "1",
     note: "",
   });
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors<SlotField>>({});
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!values.startsAt) return setError("Вкажіть початок");
-    if (Number(values.seats) > 10) return setError("Забагато місць");
-    const res = SlotCreate.safeParse({
+    const parsed = SlotCreate.safeParse({
       startsAt: kyivLocalToIso(values.startsAt),
       endsAt: kyivLocalToIso(values.endsAt),
       seats: Number(values.seats),
       note: values.note || undefined,
     });
-    if (!res.success)
-      return setError(res.error.issues[0]?.message ?? "Invalid input");
-    setError(null);
-    void onCreate(res.data);
+    if (!parsed.success) {
+      const next = fieldErrors(parsed.error, SLOT_MESSAGES);
+      setErrors(next);
+      const first = firstInvalid(FIELD_ORDER, next);
+      if (first) document.getElementById(`slot-${first}`)?.focus();
+      return;
+    }
+    setErrors({});
+    void onCreate(parsed.data);
   }
+
+  const field = (f: SlotField, type: string) => (
+    <>
+      <label htmlFor={`slot-${f}`}>{LABELS[f]}</label>
+      <input
+        id={`slot-${f}`}
+        name={f}
+        type={type}
+        value={values[f]}
+        onChange={(e) => setValues({ ...values, [f]: e.target.value })}
+        aria-invalid={errors[f] ? true : undefined}
+        aria-describedby={errors[f] ? `slot-${f}-error` : undefined}
+      />
+      {errors[f] && (
+        <p id={`slot-${f}-error`} className="field-error">{errors[f]}</p>
+      )}
+    </>
+  );
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      {error && <p className="form-error">{error}</p>}
-      <label>Початок</label>
-      <input
-        type="datetime-local"
-        name="startsAt"
-        value={values.startsAt}
-        onChange={(e) => setValues({ ...values, startsAt: e.target.value })}
-      />
-      <label>Завершення</label>
-      <input
-        type="datetime-local"
-        name="endsAt"
-        value={values.endsAt}
-        onChange={(e) => setValues({ ...values, endsAt: e.target.value })}
-      />
-      <label>Кількість місць</label>
-      <input
-        type="number"
-        name="seats"
-        value={values.seats}
-        onChange={(e) => setValues({ ...values, seats: e.target.value })}
-      />
-      <label>Примітка</label>
-      <input
-        name="note"
-        value={values.note}
-        onChange={(e) => setValues({ ...values, note: e.target.value })}
-      />
+      {field("startsAt", "datetime-local")}
+      {field("endsAt", "datetime-local")}
+      {field("seats", "number")}
+      {field("note", "text")}
       <Button type="submit">Створити слот</Button>
     </form>
   );
