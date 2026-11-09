@@ -25,6 +25,7 @@ model User {
   role      Role               @default(student)
   createdAt DateTime           @default(now()) @db.Timestamptz(3)
   bookings  Booking[]
+  series    BookingSeries[]
   slots     ConsultationSlot[] @relation("SlotTeacher")
 }
 
@@ -36,6 +37,7 @@ model Room {
   capacity     Int
   hasProjector Boolean            @default(false)
   bookings     Booking[]
+  series       BookingSeries[]
   slots        ConsultationSlot[]
 }
 
@@ -63,6 +65,8 @@ model Booking {
   slotId      Int?                            // для kind = consultation
   user        User              @relation(fields: [userId], references: [id])
   userId      Int
+  series      BookingSeries?    @relation(fields: [seriesId], references: [id])
+  seriesId    Int?                            // розд. 4
   startsAt    DateTime          @db.Timestamptz(3)   // зберігається в UTC
   endsAt      DateTime          @db.Timestamptz(3)
   purpose     String                          // вільний текст від користувача
@@ -70,4 +74,21 @@ model Booking {
   cancelledAt DateTime?         @db.Timestamptz(3)   // скасування; NULL = активне
 
   // CHECK booking_kind_target, booking_interval – міграція init (вручну)
+}
+
+model BookingSeries {
+  id             Int       @id @default(autoincrement())
+  room           Room      @relation(fields: [roomId], references: [id])
+  roomId         Int
+  user           User      @relation(fields: [userId], references: [id])
+  userId         Int
+  startLocal     String    // "2027-02-02T14:00", місцевий час timeZone
+  durationMin    Int
+  intervalWeeks  Int       @default(1)
+  untilLocalDate String    // "2027-05-25", включно
+  exdates        String[]  // ["2027-04-13"]
+  timeZone       String    @default("Europe/Kyiv")
+  purpose        String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  bookings       Booking[]
 }
