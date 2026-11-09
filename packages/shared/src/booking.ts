@@ -77,3 +77,7 @@ export const BookingSeriesCreate = WeeklyRecurrence.extend({
 export type BookingSeriesCreate = z.infer<typeof BookingSeriesCreate>;
 
 export const SeriesCancelQuery = z.object({ from: LocalDate.optional() });
+
+export const MeBookingsQuery = z.object({
+  kind: z.enum(["room", "consultation"]).optional(),
+});

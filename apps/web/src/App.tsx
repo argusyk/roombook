@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, getToken, setToken } from "./api";
 import { BookRoomPage } from "./features/booking/BookRoomPage";
 import { ConsultationsPage } from "./features/consultations/ConsultationsPage";
+import { MyConsultations } from "./features/consultations/MyConsultations";
 import { RoomsPage } from "./features/rooms/RoomsPage";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -12,6 +13,7 @@ export function route(pathname: string, search: string) {
   const book = pathname.match(/^\/rooms\/(\d+)\/book$/);
   if (book) return { page: "book" as const, roomId: Number(book[1]), date: params.get("date") ?? today() };
   if (pathname === "/consultations") return { page: "consultations" as const };
+  if (pathname === "/me/consultations") return { page: "my" as const };
   return { page: "rooms" as const, date: params.get("date") ?? today() };
 }
 
@@ -42,11 +44,13 @@ export function App() {
   return (
     <main>
       <header>
-        <a href="/">RoomBook</a> · <a href="/consultations">Консультації</a>
+        <a href="/">RoomBook</a> · <a href="/consultations">Консультації</a> ·{" "}
+        <a href="/me/consultations">Мої консультації</a>
         <DevLogin />
       </header>
       {r.page === "book" && <BookRoomPage roomId={r.roomId} date={r.date} />}
       {r.page === "consultations" && <ConsultationsPage canCreate />}
+      {r.page === "my" && <MyConsultations />}
       {r.page === "rooms" && <RoomsPage date={r.date} />}
     </main>
   );
