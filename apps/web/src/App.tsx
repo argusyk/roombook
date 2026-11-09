@@ -4,6 +4,7 @@ import { BookRoomPage } from "./features/booking/BookRoomPage";
 import { ConsultationsPage } from "./features/consultations/ConsultationsPage";
 import { MyConsultations } from "./features/consultations/MyConsultations";
 import { RoomsPage } from "./features/rooms/RoomsPage";
+import { StatsPage } from "./features/stats/StatsPage";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -14,6 +15,7 @@ export function route(pathname: string, search: string) {
   if (book) return { page: "book" as const, roomId: Number(book[1]), date: params.get("date") ?? today() };
   if (pathname === "/consultations") return { page: "consultations" as const };
   if (pathname === "/me/consultations") return { page: "my" as const };
+  if (pathname === "/stats") return { page: "stats" as const };
   return { page: "rooms" as const, date: params.get("date") ?? today() };
 }
 
@@ -45,12 +47,14 @@ export function App() {
     <main>
       <header>
         <a href="/">RoomBook</a> · <a href="/consultations">Консультації</a> ·{" "}
-        <a href="/me/consultations">Мої консультації</a>
+        <a href="/me/consultations">Мої консультації</a> ·{" "}
+        <a href="/stats">Статистика</a>
         <DevLogin />
       </header>
       {r.page === "book" && <BookRoomPage roomId={r.roomId} date={r.date} />}
       {r.page === "consultations" && <ConsultationsPage canCreate />}
       {r.page === "my" && <MyConsultations />}
+      {r.page === "stats" && <StatsPage />}
       {r.page === "rooms" && <RoomsPage date={r.date} />}
     </main>
   );

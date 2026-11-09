@@ -83,3 +83,8 @@ export const SeriesCancelQuery = z.object({ from: LocalDate.optional() });
 export const MeBookingsQuery = z.object({
   kind: z.enum(["room", "consultation"]).optional(),
 });
+
+/** Період статистики: [from, to), місцеві дати кафедри. */
+export const StatsQuery = z
+  .object({ from: LocalDate, to: LocalDate })
+  .refine((q) => q.from < q.to, { message: "Початок періоду має бути раніше за кінець", path: ["to"] });
